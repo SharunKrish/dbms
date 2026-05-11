@@ -1,9 +1,9 @@
 import csv
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import HttpResponse
+from django.db import transaction as db_transaction
 from django.db.models import Sum, Q, F, IntegerField
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
@@ -22,25 +22,51 @@ from .forms import (
 )
 
 
-def get_annotated_products():
-    return Product.objects.filter(is_active=True).annotate(
+# ---------------------------------------------------------------------------
+# Role helpers
+# ---------------------------------------------------------------------------
+
+def is_admin(user):
+    return user.is_authenticated and (user.role == "ADMIN" or user.is_superuser)
+
+
+def is_manager_or_above(user):
+    return user.is_authenticated and (user.role in ("ADMIN", "MANAGER") or user.is_superuser)
+
+
+# ---------------------------------------------------------------------------
+# Stock annotation helper — used across multiple views
+# ---------------------------------------------------------------------------
+
+def get_annotated_products(active_only=True):
+    """
+    Returns a queryset of Products annotated with:
+      - inbound  : total IN quantity
+      - outbound : total OUT quantity
+      - stock_on_hand : inbound - outbound  (S_final per SRS FR-03)
+    """
+    qs = Product.objects.all()
+    if active_only:
+        qs = qs.filter(is_active=True)
+
+    return qs.annotate(
         inbound=Coalesce(
-            Sum(
-                "transactions__quantity", filter=Q(transactions__transaction_type="IN")
-            ),
+            Sum("transactions__quantity", filter=Q(transactions__transaction_type="IN")),
             0,
             output_field=IntegerField(),
         ),
         outbound=Coalesce(
-            Sum(
-                "transactions__quantity", filter=Q(transactions__transaction_type="OUT")
-            ),
+            Sum("transactions__quantity", filter=Q(transactions__transaction_type="OUT")),
             0,
             output_field=IntegerField(),
         ),
         stock_on_hand=F("inbound") - F("outbound"),
     )
 
+
+# ---------------------------------------------------------------------------
+# Auth views
+# ---------------------------------------------------------------------------
 
 class CustomLoginView(LoginView):
     template_name = "inventory/login.html"
@@ -51,15 +77,23 @@ class CustomLogoutView(LogoutView):
     next_page = reverse_lazy("login")
 
 
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
+
 @login_required
 def dashboard(request):
     products = get_annotated_products()
     low_stock_items = [p for p in products if p.stock_on_hand <= p.min_stock]
     total_products = products.count()
-    recent_transactions = Transaction.objects.order_by("-timestamp")[:10]
+    total_suppliers = Supplier.objects.count()
+    recent_transactions = Transaction.objects.select_related(
+        "product", "user", "supplier"
+    ).order_by("-timestamp")[:10]
 
     context = {
         "total_products": total_products,
+        "total_suppliers": total_suppliers,
         "low_stock_count": len(low_stock_items),
         "low_stock_items": low_stock_items,
         "recent_transactions": recent_transactions,
@@ -67,14 +101,17 @@ def dashboard(request):
     return render(request, "inventory/dashboard.html", context)
 
 
-# --- Product Views ---
+# ---------------------------------------------------------------------------
+# Product Views
+# ---------------------------------------------------------------------------
+
 @login_required
 def product_list(request):
-    query = request.GET.get("q", "")
+    query = request.GET.get("q", "").strip()
     products_qs = get_annotated_products().order_by("name")
     if query:
         products_qs = products_qs.filter(
-            Q(name__icontains=query) | Q(sku__icontains=query)
+            Q(name__icontains=query) | Q(sku__icontains=query) | Q(category__name__icontains=query)
         )
 
     paginator = Paginator(products_qs, 10)
@@ -82,11 +119,33 @@ def product_list(request):
     products = paginator.get_page(page_number)
 
     return render(
-        request, "inventory/product_list.html", {"products": products, "query": query}
+        request,
+        "inventory/product_list.html",
+        {"products": products, "query": query},
     )
 
 
 @login_required
+def product_detail(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    transactions = Transaction.objects.filter(product=product).select_related(
+        "user", "supplier"
+    ).order_by("-timestamp")
+
+    paginator = Paginator(transactions, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "product": product,
+        "page_obj": page_obj,
+        "stock_on_hand": product.stock_on_hand,
+    }
+    return render(request, "inventory/product_detail.html", context)
+
+
+@login_required
+@user_passes_test(is_manager_or_above)
 def product_create(request):
     if request.method == "POST":
         form = ProductForm(request.POST)
@@ -102,6 +161,7 @@ def product_create(request):
 
 
 @login_required
+@user_passes_test(is_manager_or_above)
 def product_update(request, pk):
     product = get_object_or_404(Product, pk=pk, is_active=True)
     if request.method == "POST":
@@ -118,19 +178,24 @@ def product_update(request, pk):
 
 
 @login_required
+@user_passes_test(is_admin)
 def product_delete(request, pk):
+    """Soft delete — preserves transaction history (SRS FR-02)."""
     product = get_object_or_404(Product, pk=pk, is_active=True)
     if request.method == "POST":
         product.is_active = False
         product.save()
-        messages.success(request, "Product deleted successfully.")
+        messages.success(request, f'Product "{product.name}" has been deactivated.')
         return redirect("product_list")
     return render(
         request, "inventory/product_confirm_delete.html", {"product": product}
     )
 
 
-# --- Category Views ---
+# ---------------------------------------------------------------------------
+# Category Views
+# ---------------------------------------------------------------------------
+
 @login_required
 def category_list(request):
     categories = Category.objects.all().order_by("name")
@@ -138,6 +203,7 @@ def category_list(request):
 
 
 @login_required
+@user_passes_test(is_manager_or_above)
 def category_create(request):
     if request.method == "POST":
         form = CategoryForm(request.POST)
@@ -153,6 +219,7 @@ def category_create(request):
 
 
 @login_required
+@user_passes_test(is_manager_or_above)
 def category_update(request, pk):
     category = get_object_or_404(Category, pk=pk)
     if request.method == "POST":
@@ -168,7 +235,10 @@ def category_update(request, pk):
     )
 
 
-# --- Supplier Views ---
+# ---------------------------------------------------------------------------
+# Supplier Views
+# ---------------------------------------------------------------------------
+
 @login_required
 def supplier_list(request):
     suppliers = Supplier.objects.all().order_by("company_name")
@@ -176,6 +246,7 @@ def supplier_list(request):
 
 
 @login_required
+@user_passes_test(is_manager_or_above)
 def supplier_create(request):
     if request.method == "POST":
         form = SupplierForm(request.POST)
@@ -191,6 +262,7 @@ def supplier_create(request):
 
 
 @login_required
+@user_passes_test(is_manager_or_above)
 def supplier_update(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
@@ -208,10 +280,9 @@ def supplier_update(request, pk):
     )
 
 
-# --- User Management Views (Admin Only) ---
-def is_admin(user):
-    return user.is_authenticated and (user.role == "ADMIN" or user.is_superuser)
-
+# ---------------------------------------------------------------------------
+# User Management Views (Admin Only) — RBAC FR-01
+# ---------------------------------------------------------------------------
 
 @user_passes_test(is_admin)
 def user_list(request):
@@ -256,17 +327,22 @@ def user_deactivate(request, pk):
     if request.method == "POST":
         user_obj.is_active = False
         user_obj.save()
-        messages.success(request, "User deactivated successfully.")
+        messages.success(request, f'User "{user_obj.username}" has been deactivated.')
         return redirect("user_list")
     return render(
         request, "inventory/user_confirm_deactivate.html", {"user_obj": user_obj}
     )
 
 
-# --- Transaction Views ---
+# ---------------------------------------------------------------------------
+# Transaction Views — ACID atomic() wrapping (SRS §5.1)
+# ---------------------------------------------------------------------------
+
 @login_required
 def transaction_list(request):
-    transactions = Transaction.objects.order_by("-timestamp")
+    transactions = Transaction.objects.select_related(
+        "product", "user", "supplier"
+    ).order_by("-timestamp")
     paginator = Paginator(transactions, 15)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
@@ -278,11 +354,12 @@ def transaction_inbound(request):
     if request.method == "POST":
         form = TransactionInboundForm(request.POST)
         if form.is_valid():
-            transaction = form.save(commit=False)
-            transaction.transaction_type = "IN"
-            transaction.user = request.user
-            transaction.save()
-            messages.success(request, "Inbound transaction recorded.")
+            with db_transaction.atomic():
+                txn = form.save(commit=False)
+                txn.transaction_type = "IN"
+                txn.user = request.user
+                txn.save()
+            messages.success(request, f"Inbound: {txn.quantity} unit(s) of '{txn.product.name}' recorded.")
             return redirect("transaction_list")
     else:
         form = TransactionInboundForm()
@@ -298,19 +375,29 @@ def transaction_outbound(request):
     if request.method == "POST":
         form = TransactionOutboundForm(request.POST)
         if form.is_valid():
-            transaction = form.save(commit=False)
-            product = get_annotated_products().get(pk=transaction.product.pk)
-            if transaction.quantity > product.stock_on_hand:
-                form.add_error(
-                    "quantity",
-                    f"Cannot dispatch {transaction.quantity}. Only {product.stock_on_hand} in stock.",
+            txn = form.save(commit=False)
+            # Re-fetch stock_on_hand inside atomic block to prevent race conditions
+            with db_transaction.atomic():
+                product = (
+                    get_annotated_products()
+                    .select_for_update()
+                    .get(pk=txn.product.pk)
                 )
-            else:
-                transaction.transaction_type = "OUT"
-                transaction.user = request.user
-                transaction.save()
-                messages.success(request, "Outbound transaction recorded.")
-                return redirect("transaction_list")
+                if txn.quantity > product.stock_on_hand:
+                    form.add_error(
+                        "quantity",
+                        f"Cannot dispatch {txn.quantity} unit(s). "
+                        f"Only {product.stock_on_hand} in stock.",
+                    )
+                else:
+                    txn.transaction_type = "OUT"
+                    txn.user = request.user
+                    txn.save()
+                    messages.success(
+                        request,
+                        f"Outbound: {txn.quantity} unit(s) of '{txn.product.name}' dispatched.",
+                    )
+                    return redirect("transaction_list")
     else:
         form = TransactionOutboundForm()
     return render(
@@ -320,37 +407,42 @@ def transaction_outbound(request):
     )
 
 
-# --- Reporting ---
+# ---------------------------------------------------------------------------
+# Reporting — CSV export with month/year filter (SRS §6)
+# ---------------------------------------------------------------------------
+
 @login_required
 def export_csv(request):
-    month = request.GET.get('month')
-    year = request.GET.get('year')
+    month = request.GET.get("month")
+    year = request.GET.get("year")
 
     response = HttpResponse(content_type="text/csv")
     filename = "inventory_transactions.csv"
     if month and year:
-        filename = f"inventory_transactions_{year}_{month}.csv"
+        filename = f"inventory_transactions_{year}_{month:0>2}.csv"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(
-        ["ID", "Type", "Product", "Quantity", "User", "Supplier", "Timestamp"]
-    )
+    writer.writerow(["ID", "Type", "Product", "SKU", "Quantity", "User", "Supplier", "Notes", "Timestamp"])
 
-    transactions = Transaction.objects.all().order_by("-timestamp")
+    transactions = Transaction.objects.select_related(
+        "product", "user", "supplier"
+    ).order_by("-timestamp")
     if month and year:
-        transactions = transactions.filter(timestamp__year=year, timestamp__month=month)
+        transactions = transactions.filter(
+            timestamp__year=int(year), timestamp__month=int(month)
+        )
 
     for tx in transactions:
-        writer.writerow(
-            [
-                tx.id,
-                tx.get_transaction_type_display(),
-                tx.product.name,
-                tx.quantity,
-                tx.user.username,
-                tx.supplier.company_name if tx.supplier else "N/A",
-                tx.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            ]
-        )
+        writer.writerow([
+            tx.id,
+            tx.get_transaction_type_display(),
+            tx.product.name,
+            tx.product.sku,
+            tx.quantity,
+            tx.user.username,
+            tx.supplier.company_name if tx.supplier else "N/A",
+            tx.notes,
+            tx.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+        ])
     return response

@@ -1,0 +1,135 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1.5rem;">
+    <a href="{% url 'product_list' %}" class="btn btn-outline">← Back to Products</a>
+
+    {% if user.role == 'ADMIN' or user.role == 'MANAGER' or user.is_superuser %}
+    <a href="{% url 'product_update' product.pk %}" class="btn btn-primary">Edit Product</a>
+    {% endif %}
+</div>
+
+<!-- Product Info Card -->
+<div class="card glass" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start;">
+        <div style="flex: 1; min-width: 220px;">
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">SKU</p>
+            <p style="font-size: 1.1rem; font-weight: 700; font-family: monospace;">{{ product.sku }}</p>
+        </div>
+        <div style="flex: 2; min-width: 220px;">
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Product Name</p>
+            <p style="font-size: 1.4rem; font-weight: 700;">{{ product.name }}</p>
+        </div>
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Stock on Hand</p>
+            <p style="font-size: 2rem; font-weight: 800;
+                color: {% if stock_on_hand <= product.min_stock %}var(--danger){% else %}var(--success){% endif %};">
+                {{ stock_on_hand }}
+            </p>
+            {% if stock_on_hand <= product.min_stock %}
+            <span class="badge badge-danger">⚠ Low Stock</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <hr style="margin: 1rem 0; border-color: rgba(255,255,255,0.07);">
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">Category</p>
+            <p style="font-weight: 600;">{{ product.category|default:"Uncategorised" }}</p>
+        </div>
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">Unit Price</p>
+            <p style="font-weight: 600;">₹{{ product.unit_price }}</p>
+        </div>
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">Min. Stock Level</p>
+            <p style="font-weight: 600;">{{ product.min_stock }}</p>
+        </div>
+        <div>
+            <p style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">Status</p>
+            {% if product.is_active %}
+            <span class="badge badge-success">Active</span>
+            {% else %}
+            <span class="badge badge-danger">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if product.description %}
+    <div style="margin-top: 1rem;">
+        <p style="color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">Description</p>
+        <p>{{ product.description }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Transaction History -->
+<div class="card glass">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1rem; font-weight: 700;">Transaction History</h2>
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{% url 'transaction_inbound' %}" class="btn btn-sm btn-success">+ Restock</a>
+            <a href="{% url 'transaction_outbound' %}" class="btn btn-sm btn-outline">Dispatch</a>
+        </div>
+    </div>
+
+    {% if page_obj %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Recorded By</th>
+                    <th>Supplier</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in page_obj %}
+                <tr>
+                    <td>{{ tx.timestamp|date:"d M Y, H:i" }}</td>
+                    <td>
+                        {% if tx.transaction_type == 'IN' %}
+                        <span class="badge badge-success">↑ IN</span>
+                        {% else %}
+                        <span class="badge badge-danger">↓ OUT</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 700;">
+                        {% if tx.transaction_type == 'IN' %}+{% else %}−{% endif %}{{ tx.quantity }}
+                    </td>
+                    <td>{{ tx.user.username }}</td>
+                    <td>{{ tx.supplier.company_name|default:"—" }}</td>
+                    <td style="color: var(--text-muted); font-size: 0.85rem;">{{ tx.notes|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">‹ Prev</a>
+        {% endif %}
+        <span style="padding: 0.4rem 0.75rem; color: var(--text-muted);">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">Next ›</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">No transactions recorded for this product yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
