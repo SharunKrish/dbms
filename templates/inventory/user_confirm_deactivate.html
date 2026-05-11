@@ -1,0 +1,20 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}Deactivate User{% endblock %}
+
+{% block content %}
+<div class="card glass" style="max-width: 500px; margin: 0 auto;">
+    <h2>Deactivate User</h2>
+    <p style="margin-bottom: 1.5rem; color: var(--text-muted);">
+        Are you sure you want to deactivate the user account for <strong>{{ user_obj.username }}</strong>? They will no longer be able to log in.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex gap-4">
+            <button type="submit" class="btn btn-danger" style="flex: 1;">Yes, Deactivate</button>
+            <a href="{% url 'user_list' %}" class="btn btn-outline" style="flex: 1; text-align: center;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -10,13 +10,15 @@ from django.core.paginator import Paginator
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy
 
-from .models import Product, Supplier, Transaction, User
+from .models import Product, Supplier, Transaction, User, Category
 from .forms import (
     ProductForm,
     SupplierForm,
     TransactionInboundForm,
     TransactionOutboundForm,
     CustomUserCreationForm,
+    CustomUserChangeForm,
+    CategoryForm,
 )
 
 
@@ -128,6 +130,44 @@ def product_delete(request, pk):
     )
 
 
+# --- Category Views ---
+@login_required
+def category_list(request):
+    categories = Category.objects.all().order_by("name")
+    return render(request, "inventory/category_list.html", {"categories": categories})
+
+
+@login_required
+def category_create(request):
+    if request.method == "POST":
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Category added successfully.")
+            return redirect("category_list")
+    else:
+        form = CategoryForm()
+    return render(
+        request, "inventory/category_form.html", {"form": form, "title": "Add Category"}
+    )
+
+
+@login_required
+def category_update(request, pk):
+    category = get_object_or_404(Category, pk=pk)
+    if request.method == "POST":
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Category updated successfully.")
+            return redirect("category_list")
+    else:
+        form = CategoryForm(instance=category)
+    return render(
+        request, "inventory/category_form.html", {"form": form, "title": "Edit Category"}
+    )
+
+
 # --- Supplier Views ---
 @login_required
 def supplier_list(request):
@@ -194,6 +234,35 @@ def user_create(request):
     )
 
 
+@user_passes_test(is_admin)
+def user_update(request, pk):
+    user_obj = get_object_or_404(User, pk=pk)
+    if request.method == "POST":
+        form = CustomUserChangeForm(request.POST, instance=user_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "User updated successfully.")
+            return redirect("user_list")
+    else:
+        form = CustomUserChangeForm(instance=user_obj)
+    return render(
+        request, "inventory/user_form.html", {"form": form, "title": "Edit User"}
+    )
+
+
+@user_passes_test(is_admin)
+def user_deactivate(request, pk):
+    user_obj = get_object_or_404(User, pk=pk)
+    if request.method == "POST":
+        user_obj.is_active = False
+        user_obj.save()
+        messages.success(request, "User deactivated successfully.")
+        return redirect("user_list")
+    return render(
+        request, "inventory/user_confirm_deactivate.html", {"user_obj": user_obj}
+    )
+
+
 # --- Transaction Views ---
 @login_required
 def transaction_list(request):
@@ -254,10 +323,14 @@ def transaction_outbound(request):
 # --- Reporting ---
 @login_required
 def export_csv(request):
+    month = request.GET.get('month')
+    year = request.GET.get('year')
+
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = (
-        'attachment; filename="inventory_transactions.csv"'
-    )
+    filename = "inventory_transactions.csv"
+    if month and year:
+        filename = f"inventory_transactions_{year}_{month}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
     writer.writerow(
@@ -265,6 +338,9 @@ def export_csv(request):
     )
 
     transactions = Transaction.objects.all().order_by("-timestamp")
+    if month and year:
+        transactions = transactions.filter(timestamp__year=year, timestamp__month=month)
+
     for tx in transactions:
         writer.writerow(
             [

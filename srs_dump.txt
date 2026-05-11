@@ -1,0 +1,85 @@
+Software Requirements Specification (SRS)
+Project: Warehouse Inventory Management System (WIMS)
+Project Title Warehouse Inventory Management System
+(WIMS)
+Version 1.0.0
+Document Type PRD / SRS Status Draft
+1. Introduction
+This document outlines the functional and non-functional requirements for the Warehouse
+Inventory Management System (WIMS). The system is a web-based application designed to
+demonstrate robust Database Management System (DBMS) principles through full CRUD
+(Create, Read, Update, Delete) operations, transaction integrity, and relational data modeling.
+1.1 Purpose
+The primary purpose of WIMS is to provide warehouse managers and staff with a centralized
+platform to track stock levels, manage supplier relationships, and maintain an audit trail of all
+inventory movements.
+2. System Overview
+WIMS follows a 3-tier architecture:
+Frontend: Responsive Web Interface (HTML/CSS/JS)
+Backend: Server-side logic (e.g., Python/Node.js/PHP)
+Database: Relational Database (MySQL/PostgreSQL)
+• 
+• 
+• 
+Page 1 of 3
+3. Functional Requirements
+3.1 User Management & Authentication
+Requirement ID: FR-01
+System shall support Role-Based Access Control (RBAC) with three tiers: Admin,
+Manager, and Staff.
+Passwords must be stored using secure hashing (e.g., BCrypt).
+Admin shall have the ability to create, deactivate, and manage user accounts.
+3.2 Product Catalog (CRUD)
+Requirement ID: FR-02
+Create: Add new products with SKU, Name, Description, Category, Unit Price, and
+Minimum Stock Level.
+Read: Display a searchable table of products with pagination.
+Update: Edit existing product metadata (non-stock attributes).
+Delete: Support "Soft Delete" to preserve historical transaction data integrity.
+3.3 Inventory Transaction Management
+This module handles the core logic of stock movement. Stock level Sfinal is calculated as:
+Sfinal = Sinitial + Σ (TransactionsIN) - Σ (TransactionsOUT)
+Inbound (Restock): Record quantity added and link to a Supplier.
+Outbound (Dispatch): Record quantity removed for orders.
+Validation: The system shall prevent outbound transactions that exceed current Son_hand.
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+Page 2 of 3
+4. Database Schema Design
+Entity Description Key Attributes
+Users Application users and
+roles
+user_id (PK), username, password_hash, role_id (FK)
+Products Master list of items product_id (PK), sku, name, category_id (FK), min_stock
+TransactionsLog of all stock changestrans_id (PK), product_id (FK), user_id (FK), type, qty,
+timestamp
+Suppliers Vendor information supplier_id (PK), company_name, contact_person, email
+5. Non-Functional Requirements
+5.1 Data Integrity
+ACID Compliance: Transactions must ensure that stock updates and transaction logging
+happen atomically.
+Foreign Key Constraints: Prevent deletion of suppliers linked to active inventory.
+5.2 Performance & Security
+Response Time: SQL queries must return results in < 500ms for datasets up to 10,000
+records.
+SQL Injection Prevention: All database interactions must use Prepared Statements or
+ORM equivalents.
+6. User Interface Requirements
+Dashboard: Visual indicators (Red/Amber) for items where Son_hand ≤ Reorder_Level.
+Reporting: Ability to export monthly stock movement reports to CSV.
+End of Specification Document - Confidential 
+• 
+• 
+• 
+• 
+• 
+• 
+Page 3 of 3

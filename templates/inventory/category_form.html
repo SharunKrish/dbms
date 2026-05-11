@@ -1,0 +1,17 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card glass" style="max-width: 600px; margin: 0 auto;">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        
+        <div class="flex gap-4 mt-6">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Save</button>
+            <a href="{% url 'category_list' %}" class="btn btn-outline" style="flex: 1; text-align: center;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

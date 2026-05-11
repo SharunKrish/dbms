@@ -22,6 +22,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Joined</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -39,6 +40,16 @@
                         {% endif %}
                     </td>
                     <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="flex gap-4">
+                            <a href="{% url 'user_update' u.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                            {% if u.is_active %}
+                                <a href="{% url 'user_deactivate' u.pk %}" class="btn btn-warning" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; color: #d97706;">Deactivate</a>
+                            {% else %}
+                                <span class="badge badge-danger">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>

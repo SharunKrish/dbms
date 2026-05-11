@@ -33,6 +33,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="{% url 'category_list' %}" class="{% if 'category' in request.resolver_match.url_name %}active{% endif %}">
+                    Categories
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="{% url 'supplier_list' %}" class="{% if 'supplier' in request.resolver_match.url_name %}active{% endif %}">
                     Suppliers
                 </a>
