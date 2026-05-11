@@ -1,0 +1,36 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card glass" style="max-width: 500px;">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="{{ form.product.id_for_label }}">Product</label>
+            {{ form.product }}
+            {% if form.product.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.product.errors.0 }}</div>{% endif %}
+        </div>
+
+        {% if 'supplier' in form.fields %}
+        <div class="form-group">
+            <label for="{{ form.supplier.id_for_label }}">Supplier</label>
+            {{ form.supplier }}
+            {% if form.supplier.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.supplier.errors.0 }}</div>{% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-group mb-8">
+            <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+            {{ form.quantity }}
+            {% if form.quantity.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.quantity.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="flex gap-4">
+            <button type="submit" class="btn btn-primary">Submit Transaction</button>
+            <a href="{% url 'transaction_list' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

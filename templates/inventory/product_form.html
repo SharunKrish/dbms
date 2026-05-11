@@ -1,0 +1,54 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card glass" style="max-width: 600px;">
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-2">
+            <div class="form-group">
+                <label for="{{ form.sku.id_for_label }}">SKU</label>
+                {{ form.sku }}
+                {% if form.sku.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.sku.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.category.id_for_label }}">Category</label>
+                {{ form.category }}
+                {% if form.category.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.category.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">Product Name</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.description.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 mb-8">
+            <div class="form-group mb-4">
+                <label for="{{ form.unit_price.id_for_label }}">Unit Price ($)</label>
+                {{ form.unit_price }}
+                {% if form.unit_price.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.unit_price.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group mb-4">
+                <label for="{{ form.min_stock.id_for_label }}">Minimum Stock Level</label>
+                {{ form.min_stock }}
+                {% if form.min_stock.errors %}<div class="text-danger mt-4" style="font-size: 0.875rem;">{{ form.min_stock.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button type="submit" class="btn btn-primary">Save Product</button>
+            <a href="{% url 'product_list' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

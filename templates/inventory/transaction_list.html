@@ -1,0 +1,83 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="card glass mb-4">
+    <div class="flex justify-between items-center">
+        <div class="flex gap-4">
+            <a href="{% url 'export_csv' %}" class="btn btn-outline">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+            </a>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'transaction_inbound' %}" class="btn btn-success" style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3);">
+                + Restock (IN)
+            </a>
+            <a href="{% url 'transaction_outbound' %}" class="btn btn-warning" style="background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3);">
+                - Dispatch (OUT)
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card glass">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Supplier</th>
+                    <th>Processed By</th>
+                    <th>Date & Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in page_obj %}
+                <tr>
+                    <td class="text-muted">#{{ tx.id }}</td>
+                    <td>
+                        {% if tx.transaction_type == 'IN' %}
+                            <span class="badge badge-success">IN</span>
+                        {% else %}
+                            <span class="badge badge-warning">OUT</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 500;">{{ tx.product.name }}</td>
+                    <td style="font-weight: bold; color: {% if tx.transaction_type == 'IN' %}var(--success){% else %}var(--warning){% endif %};">
+                        {% if tx.transaction_type == 'IN' %}+{% else %}-{% endif %}{{ tx.quantity }}
+                    </td>
+                    <td>{{ tx.supplier.company_name|default:"-" }}</td>
+                    <td>{{ tx.user.username }}</td>
+                    <td style="font-size: 0.875rem; color: var(--text-muted);">{{ tx.timestamp|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No transactions recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-link">&laquo;</a>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            <a href="?page={{ num }}" class="page-link {% if page_obj.number == num %}active{% endif %}">{{ num }}</a>
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="page-link">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

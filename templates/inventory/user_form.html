@@ -1,0 +1,29 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card glass" style="max-width: 500px;">
+    <form method="post">
+        {% csrf_token %}
+
+        {% for field in form %}
+            <div class="form-group mb-4">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="text-muted" style="display: block; margin-top: 0.25rem;">{{ field.help_text|safe }}</small>
+                {% endif %}
+                {% if field.errors %}
+                    <div class="text-danger mt-4" style="font-size: 0.875rem;">{{ field.errors.0 }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div class="flex gap-4 mt-4">
+            <button type="submit" class="btn btn-primary">Create User</button>
+            <a href="{% url 'user_list' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

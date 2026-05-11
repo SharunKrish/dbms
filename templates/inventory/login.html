@@ -1,0 +1,40 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}{% endblock %}
+
+{% block content %}
+<div class="glass card" style="max-width: 400px; margin: 2rem auto; text-align: center;">
+    <div class="sidebar-logo" style="justify-content: center; font-size: 2rem; margin-bottom: 2rem;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        WIMS
+    </div>
+    
+    <h2 style="margin-bottom: 1.5rem;">Sign In</h2>
+    
+    <form method="post" style="text-align: left;">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div class="alert alert-error">
+                Invalid username or password.
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="id_username">Username</label>
+            <input type="text" name="username" id="id_username" required autofocus>
+        </div>
+        
+        <div class="form-group mb-8">
+            <label for="id_password">Password</label>
+            <input type="password" name="password" id="id_password" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+    </form>
+</div>
+{% endblock %}

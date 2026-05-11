@@ -1,0 +1,97 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-3 mb-8">
+    <div class="card glass stat-card" style="border-top: 3px solid var(--primary);">
+        <span class="stat-label">Total Products</span>
+        <span class="stat-value">{{ total_products }}</span>
+    </div>
+    <div class="card glass stat-card" style="border-top: 3px solid var(--warning);">
+        <span class="stat-label">Low Stock Alerts</span>
+        <span class="stat-value text-warning">{{ low_stock_count }}</span>
+    </div>
+    <div class="card glass stat-card" style="border-top: 3px solid var(--success);">
+        <span class="stat-label">System Status</span>
+        <span class="stat-value text-success" style="font-size: 1.5rem; align-self: flex-start; margin-top: 0.5rem;">Online</span>
+    </div>
+</div>
+
+<div class="grid grid-cols-2">
+    <div class="card glass">
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Low Stock Items</h2>
+        {% if low_stock_items %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Stock</th>
+                        <th>Min Level</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock_items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td style="font-weight: bold;">{{ item.stock_on_hand }}</td>
+                        <td>{{ item.min_stock }}</td>
+                        <td>
+                            {% if item.stock_on_hand == 0 %}
+                                <span class="badge badge-danger">Out of Stock</span>
+                            {% else %}
+                                <span class="badge badge-warning">Low Stock</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">All inventory levels are optimal.</p>
+        {% endif %}
+    </div>
+
+    <div class="card glass">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="font-size: 1.25rem;">Recent Transactions</h2>
+            <a href="{% url 'transaction_list' %}" class="btn btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">View All</a>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in recent_transactions %}
+                    <tr>
+                        <td>
+                            {% if tx.transaction_type == 'IN' %}
+                                <span class="badge badge-success">IN</span>
+                            {% else %}
+                                <span class="badge badge-warning">OUT</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ tx.product.name }}</td>
+                        <td>{{ tx.quantity }}</td>
+                        <td style="font-size: 0.875rem; color: var(--text-muted);">{{ tx.timestamp|date:"M d, H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No recent transactions.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

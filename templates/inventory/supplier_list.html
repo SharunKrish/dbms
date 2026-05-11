@@ -1,0 +1,46 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}Suppliers{% endblock %}
+
+{% block content %}
+<div class="card glass mb-4">
+    <div class="flex justify-between items-center">
+        <p class="text-muted">Manage your supplier network and contact information.</p>
+        <a href="{% url 'supplier_create' %}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Supplier
+        </a>
+    </div>
+</div>
+
+<div class="card glass">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Company Name</th>
+                    <th>Contact Person</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for supplier in suppliers %}
+                <tr>
+                    <td style="font-weight: 500;">{{ supplier.company_name }}</td>
+                    <td>{{ supplier.contact_person }}</td>
+                    <td><a href="mailto:{{ supplier.email }}" style="color: var(--primary); text-decoration: none;">{{ supplier.email }}</a></td>
+                    <td>
+                        <a href="{% url 'supplier_update' supplier.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No suppliers found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

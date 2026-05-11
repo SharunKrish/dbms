@@ -1,0 +1,76 @@
+{% extends "inventory/base.html" %}
+
+{% block page_title %}Products{% endblock %}
+
+{% block content %}
+<div class="card glass mb-4">
+    <div class="flex justify-between items-center">
+        <form method="get" class="flex gap-4" style="flex: 1; max-width: 500px;">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search by SKU or Name..." style="margin-bottom: 0;">
+            <button type="submit" class="btn btn-outline">Search</button>
+        </form>
+        <a href="{% url 'product_create' %}" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Product
+        </a>
+    </div>
+</div>
+
+<div class="card glass">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Min Level</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td style="font-family: monospace; color: var(--primary);">{{ product.sku }}</td>
+                    <td style="font-weight: 500;">{{ product.name }}</td>
+                    <td>{{ product.category.name|default:"Uncategorized" }}</td>
+                    <td>${{ product.unit_price }}</td>
+                    <td style="font-weight: bold; color: {% if product.stock_on_hand <= product.min_stock %}var(--danger){% else %}inherit{% endif %}">
+                        {{ product.stock_on_hand }}
+                    </td>
+                    <td>{{ product.min_stock }}</td>
+                    <td>
+                        <div class="flex gap-4">
+                            <a href="{% url 'product_update' product.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                            <a href="{% url 'product_delete' product.pk %}" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Delete</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No products found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if products.has_other_pages %}
+    <div class="pagination">
+        {% if products.has_previous %}
+            <a href="?page={{ products.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="page-link">&laquo;</a>
+        {% endif %}
+        
+        {% for num in products.paginator.page_range %}
+            <a href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}" class="page-link {% if products.number == num %}active{% endif %}">{{ num }}</a>
+        {% endfor %}
+        
+        {% if products.has_next %}
+            <a href="?page={{ products.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="page-link">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
